@@ -18,6 +18,7 @@
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/delimit.hpp>
+#include <range/v3/view/filter.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/utility/copy.hpp>
 #include "../simple_test.hpp"
@@ -165,6 +166,13 @@ int main()
     check_equal(rng12, { '3' });
     auto rng13 = subrange(std::istreambuf_iterator(&strbuf), std::istreambuf_iterator<char>()) | views::take(1);
     check_equal(rng13, { '4' });
+
+    auto rng14result = std::vector<int>();
+    for (auto i : views::iota(0)
+                | views::filter([](auto i) { return i < 3; })
+                | views::take(3))
+        rng14result.push_back(i);
+    check_equal(rng14result, { 0, 1, 2 });
 
     return test_result();
 }
