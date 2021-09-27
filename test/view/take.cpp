@@ -11,11 +11,14 @@
 
 #include <list>
 #include <vector>
+#include <sstream>
+#include <iterator>
 #include <range/v3/core.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/delimit.hpp>
+#include <range/v3/view/subrange.hpp>
 #include <range/v3/utility/copy.hpp>
 #include "../simple_test.hpp"
 #include "../test_utils.hpp"
@@ -149,6 +152,19 @@ int main()
         CPP_assert(!range<decltype(detail::as_const(rng))>);
         check_equal(rng, {0, 1, 2, 3, 4, 5});
     }
+
+    auto iss = std::istringstream("0 1 2");
+    auto rng10 = istream_view<int>(iss) | views::take(1);
+    check_equal(rng10, { 0 });
+    auto rng11 = istream_view<int>(iss) | views::take(1);
+    check_equal(rng11, { 1 });
+
+    auto strbuf = std::stringbuf("345", std::ios_base::in);
+    auto rng12 = subrange(std::istreambuf_iterator(&strbuf), std::istreambuf_iterator<char>()) | views::take(1);
+    has_type<char>(*begin(rng12));
+    check_equal(rng12, { '3' });
+    auto rng13 = subrange(std::istreambuf_iterator(&strbuf), std::istreambuf_iterator<char>()) | views::take(1);
+    check_equal(rng13, { '4' });
 
     return test_result();
 }
