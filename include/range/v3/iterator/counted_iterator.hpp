@@ -84,12 +84,13 @@ namespace ranges
         constexpr void post_increment_(std::true_type)
         {
             CPP_assert(std::is_void<decltype(current_++)>());
-            ++current_;
+            if (cnt_ > 1) ++current_;
+            --cnt_
         }
         constexpr auto post_increment_(std::false_type) -> decltype(current_++)
         {
             CPP_assert(!std::is_void<decltype(current_++)>());
-            auto && tmp = current_++;
+            auto && tmp = cnt_ > 1 ? current_++ : current_;
             --cnt_;
             return static_cast<decltype(tmp) &&>(tmp);
         }
@@ -150,6 +151,20 @@ namespace ranges
             return *current_;
         }
 
+        template(typename I2 = I)(
+            /// \pre
+            requires !random_access_iterator<I2>)
+        constexpr counted_iterator & operator++()
+        {
+            RANGES_EXPECT(cnt_ > 0);
+            if (cnt_ > 1) ++current_;
+            --cnt_;
+            return *this;
+        }
+
+        template(typename I2 = I)(
+            /// \pre
+            requires random_access_iterator<I2>)
         constexpr counted_iterator & operator++()
         {
             RANGES_EXPECT(cnt_ > 0);
