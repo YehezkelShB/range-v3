@@ -161,16 +161,20 @@ int main()
     check_equal(rng11, { 1 });
 
     auto strbuf = std::stringbuf("345", std::ios_base::in);
-    auto rng12 = subrange(std::istreambuf_iterator(&strbuf), std::istreambuf_iterator<char>()) | views::take(1);
+    auto rng12 = make_subrange(std::istreambuf_iterator<char>(&strbuf),
+                               std::istreambuf_iterator<char>())
+                    | views::take(1);
     has_type<char>(*begin(rng12));
     check_equal(rng12, { '3' });
-    auto rng13 = subrange(std::istreambuf_iterator(&strbuf), std::istreambuf_iterator<char>()) | views::take(1);
+    auto rng13 = make_subrange(std::istreambuf_iterator<char>(&strbuf),
+                               std::istreambuf_iterator<char>())
+                    | views::take(1);
     check_equal(rng13, { '4' });
 
     auto rng14result = std::vector<int>();
-    for (auto i : views::iota(0)
-                | views::filter([](auto i) { return i < 3; })
-                | views::take(3))
+    RANGES_FOR(auto i, views::iota(0)
+                     | views::filter([](auto i) { return i < 3; })
+                     | views::take(3))
         rng14result.push_back(i);
     check_equal(rng14result, { 0, 1, 2 });
 
