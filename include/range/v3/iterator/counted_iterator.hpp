@@ -65,6 +65,13 @@ namespace ranges
         {
             using iterator_concept = ranges::contiguous_iterator_tag;
         };
+
+        template<typename From, typename To>
+        To inner_iterator_convert(From it, iter_difference_t<From> /*cnt*/)
+        {
+            return it; // TODO: if the types differon their random_access-nes,
+                       //  and cnt is 0, increment or decrement the iterator
+        }
     } // namespace _counted_iterator_
     /// \endcond
 
@@ -85,14 +92,23 @@ namespace ranges
         {
             CPP_assert(std::is_void<decltype(current_++)>());
             if (cnt_ > 1) ++current_;
-            --cnt_
+            --cnt_;
         }
-        constexpr auto post_increment_(std::false_type) -> decltype(current_++)
+        constexpr auto post_increment_(std::false_type)
         {
             CPP_assert(!std::is_void<decltype(current_++)>());
-            auto && tmp = cnt_ > 1 ? current_++ : current_;
+            CPP_assert(std::is_convertible<iter_reference_t<I>,
+                                           decltype(*current_++)>());
+            struct proxy // TODO: this proxy is NOT working. possibly need to
+                         //  hold something like a
+                         //  variant<decltype(*current_), decltype(*current_++)>
+            {
+                decltype(*current_++) val;
+                decltype(*current_++) operator*() const { return val; }
+            };
+            auto tmp = cnt_ > 1 ? proxy{ *current_++ } : proxy{ *current_ };
             --cnt_;
-            return static_cast<decltype(tmp) &&>(tmp);
+            return tmp;
         }
 
     public:
@@ -112,7 +128,8 @@ namespace ranges
             /// \pre
             requires convertible_to<I2, I>)
         constexpr counted_iterator(counted_iterator<I2> const & i)
-          : current_(_counted_iterator_::access::current(i))
+          : current_(_counted_iterator_::inner_iterator_convert<I>(
+                         _counted_iterator_::access::current(i), i.count()))
           , cnt_(i.count())
         {}
 
@@ -121,13 +138,14 @@ namespace ranges
             requires convertible_to<I2, I>)
         constexpr counted_iterator & operator=(counted_iterator<I2> const & i)
         {
-            current_ = _counted_iterator_::access::current(i);
+            current_ = _counted_iterator_::inner_iterator_convert<I>(
+                        _counted_iterator_::access::current(i), i.count());
             cnt_ = i.count();
         }
 
         constexpr I base() const
         {
-            return current_;
+            return cnt_ == 0 ? next(current_) : current_;
         }
 
         constexpr iter_difference_t<I> count() const
@@ -151,10 +169,11 @@ namespace ranges
             return *current_;
         }
 
-        template(typename I2 = I)(
-            /// \pre
-            requires !random_access_iterator<I2>)
-        constexpr counted_iterator & operator++()
+        CPP_member
+        constexpr auto operator++() //
+            -> CPP_ret(counted_iterator &)(
+                /// \pre
+                requires !random_access_iterator<I>)
         {
             RANGES_EXPECT(cnt_ > 0);
             if (cnt_ > 1) ++current_;
@@ -162,10 +181,11 @@ namespace ranges
             return *this;
         }
 
-        template(typename I2 = I)(
-            /// \pre
-            requires random_access_iterator<I2>)
-        constexpr counted_iterator & operator++()
+        CPP_member
+        constexpr auto operator++() //
+            -> CPP_ret(counted_iterator &)(
+                /// \pre
+                requires random_access_iterator<I>)
         {
             RANGES_EXPECT(cnt_ > 0);
             ++current_;
@@ -173,21 +193,22 @@ namespace ranges
             return *this;
         }
 
-#ifdef RANGES_WORKAROUND_MSVC_677925
+//#ifdef RANGES_WORKAROUND_MSVC_677925
         template(typename I2 = I)(
             /// \pre
             requires (!forward_iterator<I2>)) //
-        constexpr auto operator++(int) -> decltype(std::declval<I2 &>()++)
-#else  // ^^^ workaround ^^^ / vvv no workaround vvv
-        CPP_member
-        constexpr auto operator++(int) //
-            -> CPP_ret(decltype(std::declval<I &>()++))(
-                /// \pre
-                requires (!forward_iterator<I>))
-#endif // RANGES_WORKAROUND_MSVC_677925
+        constexpr auto operator++(int)/* -> decltype(std::declval<I2 &>()++)*/
+//#else  // ^^^ workaround ^^^ / vvv no workaround vvv
+//        CPP_member
+//        constexpr auto operator++(int) //
+//            -> CPP_ret(decltype(std::declval<I &>()++))(
+//                /// \pre
+//                requires (!forward_iterator<I>))
+//#endif // RANGES_WORKAROUND_MSVC_677925
         {
             RANGES_EXPECT(cnt_ > 0);
             return post_increment_(std::is_void<decltype(current_++)>());
+//            ++*this;
         }
 
         CPP_member
@@ -201,11 +222,21 @@ namespace ranges
             return tmp;
         }
 
+        template(typename I2 = I)(
+            /// \pre
+            requires bidirectional_iterator<I> AND (!random_access_iterator<I>)) //
+        constexpr counted_iterator & operator--()
+        {
+            if (cnt_ > 0) --current_;
+            ++cnt_;
+            return *this;
+        }
+
         CPP_member
         constexpr auto operator--() //
             -> CPP_ret(counted_iterator &)(
                 /// \pre
-                requires bidirectional_iterator<I>)
+                requires random_access_iterator<I>)
         {
             --current_;
             ++cnt_;
@@ -464,7 +495,7 @@ namespace ranges
                                           iter_difference_t<I> n) const
     {
         RANGES_EXPECT(n <= i.cnt_);
-        advance(i.current_, n);
+        advance(i.current_, n == i.cnt_ ? n - 1 : n);
         i.cnt_ -= n;
     }
 
