@@ -69,7 +69,7 @@ namespace ranges
         template<typename From, typename To>
         To inner_iterator_convert(From it, iter_difference_t<From> /*cnt*/)
         {
-            return it; // TODO: if the types differon their random_access-nes,
+            return it; // TODO: if the types differ on their random_access-nes,
                        //  and cnt is 0, increment or decrement the iterator
         }
     } // namespace _counted_iterator_
