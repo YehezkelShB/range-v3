@@ -143,9 +143,22 @@ namespace ranges
             cnt_ = i.count();
         }
 
-        constexpr I base() const
+        CPP_member
+        constexpr auto base() const //
+            -> CPP_ret(I)(
+                /// \pre
+                requires !random_access_iterator<I>)
         {
             return cnt_ == 0 ? next(current_) : current_;
+        }
+
+        CPP_member
+        constexpr auto base() const //
+            -> CPP_ret(I)(
+                /// \pre
+                requires random_access_iterator<I>)
+        {
+            return current_;
         }
 
         constexpr iter_difference_t<I> count() const
