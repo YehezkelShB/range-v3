@@ -85,8 +85,9 @@ namespace ranges
         CPP_assert(input_or_output_iterator<I>);
         friend _counted_iterator_::access;
 
-        I current_{};
+        mutable I current_{};
         iter_difference_t<I> cnt_{0};
+        mutable bool at_end_ = false; // when cnt_==0, this shows if current_ was actually incremented
 
         constexpr void post_increment_(std::true_type)
         {
@@ -120,6 +121,7 @@ namespace ranges
         constexpr counted_iterator(I x, iter_difference_t<I> n)
           : current_(std::move(x))
           , cnt_(n)
+          , at_end_(n == 0)
         {
             RANGES_EXPECT(n >= 0);
         }
@@ -131,6 +133,7 @@ namespace ranges
           : current_(_counted_iterator_::inner_iterator_convert<I>(
                          _counted_iterator_::access::current(i), i.count()))
           , cnt_(i.count())
+          , at_end_(i.at_end_)
         {}
 
         template(typename I2)(
@@ -141,6 +144,7 @@ namespace ranges
             current_ = _counted_iterator_::inner_iterator_convert<I>(
                         _counted_iterator_::access::current(i), i.count());
             cnt_ = i.count();
+            at_end_ = i.at_end_;
         }
 
         CPP_member
@@ -149,7 +153,13 @@ namespace ranges
                 /// \pre
                 requires !random_access_iterator<I>)
         {
-            return cnt_ == 0 ? next(current_) : current_;
+            if (cnt_ == 0 && !at_end_)
+            {
+                ++current_;
+                at_end_ = true;
+            }
+
+            return current_;
         }
 
         CPP_member
